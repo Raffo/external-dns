@@ -1,0 +1,56 @@
+name: end to end tets with local provider
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: install kind
+      run: |
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+    - name: create kind cluster
+      run: |
+        kind create cluster
+    - name: install kubectl
+      run: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/kubectl
+    - name: build external dns
+      run: |
+        make build
+    - name: run external dns locally
+      run: |
+        ./build/external-dns --source=service --provider=local &
+    - name: run the local provider
+      run: |
+        cd provider/local
+        go build .
+        ./local
+    - name: apply a kubernetes yaml with a service
+      run: |
+        kubectl apply -f ./k8s/service.yaml
+    - name: show kubectl get services
+      run: |
+        kubectl get services
+    - name: sleep to wait for convergence
+      run: |
+        sleep 90 # normal loop is 60 seconds, this is enough and should not cause flakes
+    - name: check that the record are present in
+      run: |
+        kubectl get services
+    - name: check that the records are present in the /etc/hosts file
+      run: |
+        cat /etc/hosts
+        
