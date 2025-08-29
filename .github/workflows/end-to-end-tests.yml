@@ -36,7 +36,7 @@ jobs:
       run: |
         cd provider/local
         go build .
-        ./local
+        ./local &
     - name: apply a kubernetes yaml with a service
       run: |
         kubectl apply -f ./k8s/service.yaml
