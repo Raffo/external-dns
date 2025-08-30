@@ -39,7 +39,7 @@ jobs:
         ./local &
     - name: apply a kubernetes yaml with a service
       run: |
-        kubectl apply -f ./k8s/service.yaml
+        kubectl apply -f ./e2e/service.yaml
     - name: show kubectl get services
       run: |
         kubectl get services
@@ -49,7 +49,6 @@ jobs:
     - name: check that the record are present in
       run: |
         kubectl get services
-    - name: check that the records are present in the /etc/hosts file
+    - name: check that the records are present
       run: |
-        cat /etc/hosts
-        
+        dig externaldns-e2e.external.dns
