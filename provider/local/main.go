@@ -13,9 +13,8 @@ import (
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
+	"sigs.k8s.io/external-dns/provider/webhook/api"
 )
-
-const mediaType = "application/vnd.external-dns.webhook+json;version=1"
 
 func main() {
 	listenAddress := flag.String("listen-address", "127.0.0.1", "Address to listen on")
@@ -37,14 +36,14 @@ func negotiateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Content-Type", mediaType)
+	w.Header().Set("Content-Type", api.MediaTypeFormatAndVersion)
 	// Return your supported DomainFilter here
 	json.NewEncoder(w).Encode(endpoint.DomainFilter{})
 }
 
 func recordsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		w.Header().Set("Content-Type", mediaType)
+		w.Header().Set("Content-Type", api.MediaTypeFormatAndVersion)
 		// Return your DNS records here
 		hosts, err := os.Open("/etc/hosts")
 		if err != nil {
@@ -88,7 +87,7 @@ func recordsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodPost {
-		w.Header().Set("Content-Type", mediaType)
+		w.Header().Set("Content-Type", api.MediaTypeFormatAndVersion)
 		// Read and apply changes
 		var changes plan.Changes
 		body, _ := io.ReadAll(r.Body)
@@ -157,8 +156,14 @@ func recordsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func adjustEndpointsHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("adjustEndpoints method not implemented")
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	// read the endpoints from the input, return them straight back
+	var endpoints []endpoint.Endpoint
+	if err := json.NewDecoder(r.Body).Decode(&endpoints); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", api.MediaTypeFormatAndVersion)
+	json.NewEncoder(w).Encode(endpoints)
 }
 
 func healthzHandler(w http.ResponseWriter, r *http.Request) {

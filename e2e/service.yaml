@@ -2,16 +2,15 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: kuard
-  name: kuard
+    app: demo-app
+  name: demo-app
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: externaldns-e2e.external.dns
+    external-dns.alpha.kubernetes.io/hostname: demo-app.external.dns
 spec:
   ports:
   - port: 80
     protocol: TCP
     targetPort: 8080
   selector:
-    app: kuard
-  sessionAffinity: None
-  type: LoadBalancer
+    app: demo-app
+  clusterIP: None
