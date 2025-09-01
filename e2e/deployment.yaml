@@ -15,5 +15,5 @@ spec:
         app: demo-app
     spec:
       containers:
-      - image: ghcr.io/raffo/http-server-demo-app:latest /bin/sh
+      - image: ghcr.io/raffo/http-server-demo-app:latest
         name: demo-app
