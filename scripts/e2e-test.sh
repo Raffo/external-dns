@@ -24,11 +24,6 @@ sudo mv kubectl /usr/local/bin/kubectl
 echo "Building external-dns..."
 make build
 
-# Run external-dns locally in background
-echo "Starting external-dns locally..."
-./build/external-dns --source=service --provider=webhook --txt-owner-id=external.dns --policy=sync &
-EXTERNAL_DNS_PID=$!
-
 # Run the local provider in background
 echo "Starting local provider..."
 cd provider/local
@@ -36,6 +31,13 @@ go build .
 ./local &
 LOCAL_PROVIDER_PID=$!
 cd ../..
+
+sleep 10
+
+# Run external-dns locally in background
+echo "Starting external-dns locally..."
+./build/external-dns --source=service --provider=webhook --txt-owner-id=external.dns --policy=sync &
+EXTERNAL_DNS_PID=$!
 
 # Apply kubernetes yaml with service
 echo "Applying Kubernetes service..."
