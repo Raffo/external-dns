@@ -44,7 +44,6 @@ func negotiateHandler(w http.ResponseWriter, r *http.Request) {
 func recordsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", api.MediaTypeFormatAndVersion)
-		// Return your DNS records here
 		hosts, err := os.Open("/etc/hosts")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -86,13 +85,11 @@ func recordsHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(endpoints)
 		return
 	}
-	if r.Method == http.MethodPost {
+	if r.Method == http.MethodPost { // TODO review this one here
 		w.Header().Set("Content-Type", api.MediaTypeFormatAndVersion)
-		// Read and apply changes
 		var changes plan.Changes
 		body, _ := io.ReadAll(r.Body)
 		json.Unmarshal(body, &changes)
-		// Read current hosts file
 		hosts, err := os.ReadFile("/etc/hosts")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -102,7 +99,6 @@ func recordsHandler(w http.ResponseWriter, r *http.Request) {
 		lines := strings.Split(string(hosts), "\n")
 		var newLines []string
 
-		// Process each line, removing entries that match endpoints to delete
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
@@ -116,7 +112,6 @@ func recordsHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Check if this line contains any hostname we need to delete
 			shouldKeep := true
 			for _, del := range changes.Delete {
 				for _, hostname := range fields[1:] {
@@ -135,14 +130,12 @@ func recordsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Add new entries
 		for _, create := range changes.Create {
 			if len(create.Targets) > 0 {
 				newLines = append(newLines, fmt.Sprintf("%s\t%s", create.Targets[0], create.DNSName))
 			}
 		}
 
-		// Write back to hosts file
 		newContent := strings.Join(newLines, "\n")
 		err = os.WriteFile("/etc/hosts", []byte(newContent), 0644)
 		if err != nil {
