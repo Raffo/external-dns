@@ -13,42 +13,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    - name: install kind
+    - name: e2e
       run: |
-        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
-        chmod +x ./kind
-        sudo mv ./kind /usr/local/bin/kind
-    - name: create kind cluster
-      run: |
-        kind create cluster
-    - name: install kubectl
-      run: |
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        sudo mv kubectl /usr/local/bin/kubectl
-    - name: build external dns
-      run: |
-        make build
-    - name: run external dns locally
-      run: |
-        ./build/external-dns --source=service --provider=local &
-    - name: run the local provider
-      run: |
-        cd provider/local
-        go build .
-        ./local &
-    - name: apply a kubernetes yaml with a service
-      run: |
-        kubectl apply -f ./e2e/service.yaml
-    - name: show kubectl get services
-      run: |
-        kubectl get services
-    - name: sleep to wait for convergence
-      run: |
-        sleep 90 # normal loop is 60 seconds, this is enough and should not cause flakes
-    - name: check that the record are present in
-      run: |
-        kubectl get services
-    - name: check that the records are present
-      run: |
-        dig externaldns-e2e.external.dns
+        ./scripts/e2e-test.sh
