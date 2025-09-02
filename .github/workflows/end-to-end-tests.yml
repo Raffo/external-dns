@@ -2,6 +2,7 @@ name: end to end tets with local provider
 
 on:
   push:
+    branches: [ master ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
