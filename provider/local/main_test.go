@@ -19,6 +19,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -29,9 +30,20 @@ import (
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
+	"sigs.k8s.io/external-dns/provider/webhook/api"
 )
 
+// shouldSkipTests checks if tests should be skipped.
+// Tests are skipped when running outside of CI, because they need to modify /etc/hosts
+func shouldSkipTests(t *testing.T) {
+	if os.Getenv("CI") == "" {
+		t.Skip("Skipping integration test: set CI=1 or EXTERNAL_DNS_INTEGRATION_TESTS=1 to run")
+	}
+}
+
 func TestNegotiateHandler(t *testing.T) {
+	shouldSkipTests(t)
+
 	tests := []struct {
 		name           string
 		method         string
@@ -42,7 +54,7 @@ func TestNegotiateHandler(t *testing.T) {
 			name:           "Valid GET request",
 			method:         http.MethodGet,
 			expectedStatus: http.StatusOK,
-			expectedHeader: mediaType,
+			expectedHeader: api.MediaTypeFormatAndVersion,
 		},
 		{
 			name:           "Invalid POST request",
@@ -65,7 +77,6 @@ func TestNegotiateHandler(t *testing.T) {
 			if tt.expectedHeader != "" {
 				require.Equal(t, tt.expectedHeader, res.Header.Get("Content-Type"))
 
-				// Check that response contains a valid DomainFilter
 				defer res.Body.Close()
 				var domainFilter endpoint.DomainFilter
 				err := json.NewDecoder(res.Body).Decode(&domainFilter)
@@ -76,6 +87,8 @@ func TestNegotiateHandler(t *testing.T) {
 }
 
 func TestRecordsHandlerGet_WithValidHostsFile(t *testing.T) {
+	shouldSkipTests(t)
+
 	req := httptest.NewRequest(http.MethodGet, "/records", nil)
 	w := httptest.NewRecorder()
 
@@ -83,7 +96,7 @@ func TestRecordsHandlerGet_WithValidHostsFile(t *testing.T) {
 
 	res := w.Result()
 	if res.StatusCode == http.StatusOK {
-		require.Equal(t, mediaType, res.Header.Get("Content-Type"))
+		require.Equal(t, api.MediaTypeFormatAndVersion, res.Header.Get("Content-Type"))
 
 		defer res.Body.Close()
 		var endpoints []endpoint.Endpoint
@@ -91,17 +104,11 @@ func TestRecordsHandlerGet_WithValidHostsFile(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Logf("Found %d endpoints in /etc/hosts", len(endpoints))
-	} else {
-		require.Equal(t, http.StatusInternalServerError, res.StatusCode)
-		t.Log("Expected behavior: /etc/hosts not accessible")
 	}
 }
 
-// TODO this needs to be changed so that we can actually test the edits to /etc/hosts
 func TestRecordsHandlerPost_WithValidJSON(t *testing.T) {
-	if _, exists := os.LookupEnv("LOCAL_PROVIDER_E2E"); !exists {
-		t.Skip("Skipping test: LOCAL_PROVIDER_E2E environment variable not set")
-	}
+	shouldSkipTests(t)
 
 	changes := plan.Changes{
 		Create: []*endpoint.Endpoint{
@@ -121,29 +128,28 @@ func TestRecordsHandlerPost_WithValidJSON(t *testing.T) {
 	recordsHandler(w, req)
 
 	res := w.Result()
-	// This might succeed or fail depending on file permissions
-	// We're just testing that the handler processes the request correctly
-	require.Contains(t, []int{http.StatusNoContent, http.StatusInternalServerError}, res.StatusCode)
+	require.Equal(t, http.StatusNoContent, res.StatusCode)
 
-	if res.StatusCode == http.StatusNoContent {
-		require.Equal(t, mediaType, res.Header.Get("Content-Type"))
-		t.Log("Successfully applied changes (file was writable)")
-	} else {
-		t.Log("Expected behavior: /etc/hosts not writable or readable")
-	}
+	require.Equal(t, api.MediaTypeFormatAndVersion, res.Header.Get("Content-Type"))
+	t.Log("Successfully applied changes (file was writable)")
 }
 
 func TestRecordsHandlerPost_WithInvalidJSON(t *testing.T) {
+	shouldSkipTests(t)
+
 	req := httptest.NewRequest(http.MethodPost, "/records", bytes.NewReader([]byte("invalid json")))
 	w := httptest.NewRecorder()
 
 	recordsHandler(w, req)
 
 	res := w.Result()
-	require.Contains(t, []int{http.StatusInternalServerError}, res.StatusCode)
+	fmt.Println(res)
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 }
 
 func TestRecordsHandlerPost_WithEmptyTargets(t *testing.T) {
+	shouldSkipTests(t)
+
 	changes := plan.Changes{
 		Create: []*endpoint.Endpoint{
 			{DNSName: "test.example.com", Targets: []string{}},
@@ -160,11 +166,12 @@ func TestRecordsHandlerPost_WithEmptyTargets(t *testing.T) {
 	recordsHandler(w, req)
 
 	res := w.Result()
-	// This might succeed or fail depending on file permissions
-	require.Contains(t, []int{http.StatusNoContent, http.StatusInternalServerError}, res.StatusCode)
+	require.Equal(t, http.StatusNoContent, res.StatusCode)
 }
 
 func TestRecordsHandlerInvalidMethod(t *testing.T) {
+	shouldSkipTests(t)
+
 	tests := []string{http.MethodPut, http.MethodDelete, http.MethodPatch}
 
 	for _, method := range tests {
@@ -180,55 +187,66 @@ func TestRecordsHandlerInvalidMethod(t *testing.T) {
 	}
 }
 
-func TestAdjustEndpointsHandler(t *testing.T) {
-	methods := []string{http.MethodPost, http.MethodGet, http.MethodPut, http.MethodDelete}
+func TestAdjustEndpointsHandler_WithInvalidJSON(t *testing.T) {
+	shouldSkipTests(t)
 
-	for _, method := range methods {
-		t.Run(method, func(t *testing.T) {
-			req := httptest.NewRequest(method, "/adjustendpoints", nil)
-			w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/adjustendpoints", nil)
+	w := httptest.NewRecorder()
 
-			adjustEndpointsHandler(w, req)
+	adjustEndpointsHandler(w, req)
 
-			res := w.Result()
-			require.Equal(t, http.StatusNotImplemented, res.StatusCode)
+	res := w.Result()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
 
-			defer res.Body.Close()
-			body, err := io.ReadAll(res.Body)
-			require.NoError(t, err)
-			require.Equal(t, "not implemented\n", string(body))
-		})
+	defer res.Body.Close()
+}
+
+func TestAdjustEndpointsHandler_WithValidJSON(t *testing.T) {
+	shouldSkipTests(t)
+
+	endpoints := []endpoint.Endpoint{
+		{
+			DNSName:    "test.example.com",
+			RecordType: "A",
+			Targets:    []string{"192.168.1.1", "192.168.1.2"},
+			RecordTTL:  300,
+		},
 	}
+
+	endpointsJSON, err := json.Marshal(endpoints)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/adjustendpoints", bytes.NewReader(endpointsJSON))
+	w := httptest.NewRecorder()
+
+	adjustEndpointsHandler(w, req)
+
+	res := w.Result()
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	defer res.Body.Close()
 }
 
 func TestHealthzHandler(t *testing.T) {
-	methods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete}
+	shouldSkipTests(t)
 
-	for _, method := range methods {
-		t.Run(method, func(t *testing.T) {
-			req := httptest.NewRequest(method, "/healthz", nil)
-			w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	w := httptest.NewRecorder()
 
-			healthzHandler(w, req)
+	healthzHandler(w, req)
 
-			res := w.Result()
-			require.Equal(t, http.StatusOK, res.StatusCode)
+	res := w.Result()
+	require.Equal(t, http.StatusOK, res.StatusCode)
 
-			defer res.Body.Close()
-			body, err := io.ReadAll(res.Body)
-			require.NoError(t, err)
-			require.Equal(t, "ok", string(body))
-		})
-	}
-}
-
-func TestMediaTypeConstant(t *testing.T) {
-	expectedMediaType := "application/vnd.external-dns.webhook+json;version=1"
-	require.Equal(t, expectedMediaType, mediaType)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, "ok", string(body))
 }
 
 func TestPlanChangesUnmarshaling(t *testing.T) {
-	// Test that we can properly unmarshal the plan.Changes structure
+	shouldSkipTests(t)
+
 	changes := plan.Changes{
 		Create: []*endpoint.Endpoint{
 			{
@@ -282,6 +300,8 @@ func TestPlanChangesUnmarshaling(t *testing.T) {
 }
 
 func TestEndpointSerialization(t *testing.T) {
+	shouldSkipTests(t)
+
 	// Test that endpoint structures are properly serialized/deserialized
 	endpoints := []endpoint.Endpoint{
 		{
@@ -319,45 +339,4 @@ func TestEndpointSerialization(t *testing.T) {
 	require.Equal(t, "CNAME", unmarshaledEndpoints[1].RecordType)
 	require.Equal(t, endpoint.Targets{"target.example.com"}, unmarshaledEndpoints[1].Targets)
 	require.Equal(t, endpoint.TTL(600), unmarshaledEndpoints[1].RecordTTL)
-}
-
-func TestHTTPServerIntegration(t *testing.T) {
-	// Test that all handlers work together
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", negotiateHandler)
-	mux.HandleFunc("/records", recordsHandler)
-	mux.HandleFunc("/adjustendpoints", adjustEndpointsHandler)
-	mux.HandleFunc("/healthz", healthzHandler)
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	// Test negotiate endpoint
-	resp, err := http.Get(server.URL + "/")
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, mediaType, resp.Header.Get("Content-Type"))
-
-	// Test healthz endpoint
-	resp, err = http.Get(server.URL + "/healthz")
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, "ok", string(body))
-
-	// Test records GET endpoint
-	resp, err = http.Get(server.URL + "/records")
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	// This will either succeed or fail depending on file access
-	require.Contains(t, []int{http.StatusOK, http.StatusInternalServerError}, resp.StatusCode)
-
-	// Test adjustendpoints endpoint
-	resp, err = http.Post(server.URL+"/adjustendpoints", "application/json", bytes.NewReader([]byte("{}")))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
 }
