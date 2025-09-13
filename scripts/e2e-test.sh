@@ -2,6 +2,8 @@
 
 set -e
 
+KO_VERSION="0.18.0"
+
 echo "Starting end-to-end tests for external-dns with local provider..."
 
 # Install kind
@@ -20,24 +22,98 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 chmod +x kubectl
 sudo mv kubectl /usr/local/bin/kubectl
 
+# Install ko
+echo "Installing ko..."
+curl -sSfL "https://github.com/ko-build/ko/releases/download/v${KO_VERSION}/ko_${KO_VERSION}_linux_x86_64.tar.gz" > ko.tar.gz
+tar xzf ko.tar.gz ko
+chmod +x ./ko
+sudo mv ko /usr/local/bin/ko
+
 # Build external-dns
 echo "Building external-dns..."
-make build
+make build.image
 
 # Run the local provider in background
-echo "Starting local provider..."
-cd provider/local
-go build .
-./local &
-LOCAL_PROVIDER_PID=$!
-cd ../..
+# echo "Starting local provider..."
+# cd provider/local
+# go build .
+# ./local &
+# LOCAL_PROVIDER_PID=$!
+# cd ../..
 
+docker build -t webhook -f - . <<EOF
+FROM golang:1.25 AS builder
+WORKDIR /app
+COPY . .
+RUN pwd && CGO_ENABLED=0 go build -o /app/etchostprovider /app/provider/etchosts
+FROM scratch
+COPY --from=builder /app/etchostprovider /etchostprovider
+ENTRYPOINT ["/etchostprovider"]
+EOF
+
+kind load docker-image webhook
 sleep 10
 
-# Run external-dns locally in background
-echo "Starting external-dns locally..."
-./build/external-dns --source=service --provider=webhook --txt-owner-id=external.dns --policy=sync &
-EXTERNAL_DNS_PID=$!
+# # Run external-dns locally in background
+# echo "Starting external-dns locally..."
+# ./build/external-dns --source=service --provider=webhook --txt-owner-id=external.dns --policy=sync &
+# EXTERNAL_DNS_PID=$!
+
+# Deploy ExternalDNS to the cluster
+# create kustomization on the fly to add --provider=webhook --txt-owner-id=external.dns --policy=sync to the content in the kustomize folder
+echo "Deploying external-dns with custom arguments..."
+
+# Create temporary directory for kustomization
+TEMP_KUSTOMIZE_DIR=$(mktemp -d)
+cp -r kustomize/* "$TEMP_KUSTOMIZE_DIR/"
+
+# Create patch file on the fly
+cat <<EOF > "$TEMP_KUSTOMIZE_DIR/deployment-args-patch.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+spec:
+  template:
+    spec:
+      containers:
+        - name: external-dns
+          args:
+            - --source=service
+            - --provider=webhook
+            - --txt-owner-id=external.dns
+            - --policy=sync
+        - name: webhook
+          image: webhook
+EOF
+
+# Update kustomization.yaml to include the patch
+cat <<EOF > "$TEMP_KUSTOMIZE_DIR/kustomization.yaml"
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+images:
+  - name: registry.k8s.io/external-dns/external-dns
+    newTag: v0.18.0
+
+resources:
+  - ./external-dns-deployment.yaml
+  - ./external-dns-serviceaccount.yaml
+  - ./external-dns-clusterrole.yaml
+  - ./external-dns-clusterrolebinding.yaml
+
+patchesStrategicMerge:
+  - ./deployment-args-patch.yaml
+EOF
+
+# Apply the kustomization
+kubectl kustomize "$TEMP_KUSTOMIZE_DIR" | kubectl apply -f -
+
+# add a wait for the deployment to be available
+kubectl wait --for=condition=available --timeout=60s deployment/external-dns
+
+# Cleanup temporary directory
+rm -rf "$TEMP_KUSTOMIZE_DIR"
 
 # Apply kubernetes yaml with service
 echo "Applying Kubernetes service..."
