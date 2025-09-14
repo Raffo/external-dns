@@ -41,7 +41,7 @@ make build.image
 # LOCAL_PROVIDER_PID=$!
 # cd ../..
 
-docker build -t webhook -f - . <<EOF
+docker build -t webhook:v1 -f - . <<EOF
 FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
@@ -51,7 +51,7 @@ COPY --from=builder /app/etchostprovider /etchostprovider
 ENTRYPOINT ["/etchostprovider"]
 EOF
 
-kind load docker-image webhook
+kind load docker-image webhook:v1
 sleep 10
 
 # # Run external-dns locally in background
@@ -84,7 +84,10 @@ spec:
             - --txt-owner-id=external.dns
             - --policy=sync
         - name: webhook
-          image: webhook
+          image: webhook:v1
+          ports:
+            - containerPort: 8888
+              name: http
 EOF
 
 # Update kustomization.yaml to include the patch
