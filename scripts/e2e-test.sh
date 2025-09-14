@@ -129,6 +129,8 @@ sleep 90  # normal loop is 60 seconds, this is enough and should not cause flake
 # Check that the records are present
 echo "Checking services again..."
 kubectl get services
+kubectl get pods
+kubectl describe deployment external-dns
 
 # Check that the DNS records are present
 echo "Checking DNS records..."
