@@ -88,6 +88,17 @@ spec:
           ports:
             - containerPort: 8888
               name: http
+          volumeMounts:
+            - name: hosts-file
+              mountPath: /etc/hosts
+              subPath: hosts
+    volumes:
+    - name: hosts-file
+      hostPath:
+      path: /etc/hosts
+      type: File
+    securityContext:
+      privileged: true
 EOF
 
 # Update kustomization.yaml to include the patch
