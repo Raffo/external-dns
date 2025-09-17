@@ -148,7 +148,7 @@ kubectl logs -l app=external-dns
 
 # Check that the DNS records are present
 echo "Checking DNS records..."
-if dig +short demo-app.external.dns | grep -q .; then
+if dig +short externaldns-e2e.external.dns | grep -q .; then
 	echo "DNS record exists"
 else
 	echo "ERROR: DNS record not found"
