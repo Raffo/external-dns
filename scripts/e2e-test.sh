@@ -91,7 +91,6 @@ spec:
           volumeMounts:
             - name: hosts-file
               mountPath: /etc/hosts
-              subPath: hosts
           securityContext:
             privileged: true
       volumes:
