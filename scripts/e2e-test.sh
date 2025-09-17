@@ -128,6 +128,7 @@ kubectl wait --for=condition=available --timeout=60s deployment/external-dns || 
 
 kubectl get pods 
 kubectl describe deployment external-dns
+kubectl logs -l app=external-dns
 
 # Cleanup temporary directory
 rm -rf "$TEMP_KUSTOMIZE_DIR"
