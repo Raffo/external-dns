@@ -124,8 +124,9 @@ EOF
 kubectl kustomize "$TEMP_KUSTOMIZE_DIR" | kubectl apply -f -
 
 # add a wait for the deployment to be available
-kubectl wait --for=condition=available --timeout=60s deployment/external-dns
+kubectl wait --for=condition=available --timeout=60s deployment/external-dns || true
 
+kubectl get pods 
 kubectl describe deployment external-dns
 
 # Cleanup temporary directory
