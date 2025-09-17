@@ -92,13 +92,13 @@ spec:
             - name: hosts-file
               mountPath: /etc/hosts
               subPath: hosts
+          securityContext:
+            privileged: true
       volumes:
       - name: hosts-file
         hostPath:
-        path: /etc/hosts
-        type: File
-      securityContext:
-        privileged: true
+          path: /etc/hosts
+          type: File
 EOF
 
 # Update kustomization.yaml to include the patch
