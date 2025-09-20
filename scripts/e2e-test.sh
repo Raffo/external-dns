@@ -168,7 +168,7 @@ spec:
       dnsPolicy: Default
       containers:
       - name: dns-test
-        image: busybox:1.37
+        image: busybox:1.35
         command:
         - /bin/sh
         - -c
