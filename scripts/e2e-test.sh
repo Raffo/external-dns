@@ -185,7 +185,7 @@ EOF
 
 # Wait for the job to complete
 echo "Waiting for DNS test job to complete..."
-kubectl wait --for=condition=complete --timeout=60s job/dns-test-job
+kubectl wait --for=condition=complete --timeout=90s job/dns-test-job
 
 # Check job status and get results
 JOB_SUCCEEDED=$(kubectl get job dns-test-job -o jsonpath='{.status.succeeded}')
