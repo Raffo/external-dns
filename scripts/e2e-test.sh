@@ -41,6 +41,9 @@ make build.image
 # LOCAL_PROVIDER_PID=$!
 # cd ../..
 
+# giving the right permissions to the /etc/hosts file
+sudo chmod 666 /etc/hosts
+
 docker build -t webhook:v1 -f - . <<EOF
 FROM golang:1.25 AS builder
 WORKDIR /app
