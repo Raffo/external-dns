@@ -146,14 +146,61 @@ kubectl describe pods -l app=external-dns
 kubectl describe deployment external-dns
 kubectl logs -l app=external-dns
 
-# Check that the DNS records are present
-echo "Checking DNS records..."
-if dig +short externaldns-e2e.external.dns | grep -q .; then
-	echo "DNS record exists"
+# Check that the DNS records are present using a Kubernetes Job
+echo "Checking DNS records via Kubernetes Job..."
+
+# Create DNS test job
+cat <<EOF | kubectl apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dns-test-job
+  labels:
+    app: dns-test
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: dns-test
+    spec:
+      restartPolicy: Never
+      dnsPolicy: Default
+      containers:
+      - name: dns-test
+        image: busybox:1.37
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Testing DNS resolution for externaldns-e2e.external.dns..."
+          if nslookup externaldns-e2e.external.dns; then
+            echo "SUCCESS: DNS record found"
+            exit 0
+          else
+            echo "ERROR: DNS record not found"
+            exit 1
+          fi
+EOF
+
+# Wait for the job to complete
+echo "Waiting for DNS test job to complete..."
+kubectl wait --for=condition=complete --timeout=60s job/dns-test-job
+
+# Check job status and get results
+JOB_SUCCEEDED=$(kubectl get job dns-test-job -o jsonpath='{.status.succeeded}')
+kubectl logs job/dns-test-job
+
+if [ "$JOB_SUCCEEDED" = "1" ]; then
+    echo "DNS test passed successfully"
 else
-	echo "ERROR: DNS record not found"
-	exit 1
+    echo "ERROR: DNS test job failed"
+    kubectl describe job dns-test-job
+    exit 1
 fi
+
+# Cleanup the test job
+kubectl delete job dns-test-job
 
 echo "End-to-end test completed!"
 
