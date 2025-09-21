@@ -199,6 +199,7 @@ if [ "$JOB_SUCCEEDED" = "1" ]; then
 else
     echo "ERROR: DNS test job failed"
     kubectl describe job dns-test-job
+    cat /etc/hosts
     exit 1
 fi
 
