@@ -86,6 +86,7 @@ spec:
             - --provider=webhook
             - --txt-owner-id=external.dns
             - --policy=sync
+            - --log-level=debug
         - name: webhook
           image: webhook:v1
           ports:
