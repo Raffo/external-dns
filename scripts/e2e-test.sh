@@ -79,6 +79,7 @@ metadata:
 spec:
   template:
     spec:
+      hostNetwork: true
       containers:
         - name: external-dns
           args:
@@ -169,6 +170,7 @@ spec:
     spec:
       restartPolicy: Never
       dnsPolicy: Default
+      hostNetwork: true
       containers:
       - name: dns-test
         image: busybox:1.35
