@@ -48,10 +48,10 @@ docker build -t webhook:v1 -f - . <<EOF
 FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
-RUN pwd && CGO_ENABLED=0 go build -o /app/etchostprovider /app/provider/etchosts
+RUN pwd && CGO_ENABLED=0 go build -o /app/localprovider /app/provider/local
 FROM scratch
-COPY --from=builder /app/etchostprovider /etchostprovider
-ENTRYPOINT ["/etchostprovider"]
+COPY --from=builder /app/localprovider /localprovider
+ENTRYPOINT ["/localprovider"]
 EOF
 
 kind load docker-image webhook:v1
