@@ -1,3 +1,5 @@
-# Local Webhook Provider based on /etc/hosts
+# Local Webhook Provider
 
-A simple webhook provider that modifies `/etc/hosts` on localhost, mostly used for testing purposes. Feel free to use it for your own testing or at your own risk, but it is not intended nor tested for production use.
+A demo provider that allows to store records in memory and query them via a locally exposed simple DNS server implementation. 
+
+**NOTE**: this provider is not intended for any production usage.

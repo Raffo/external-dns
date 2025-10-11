@@ -3,12 +3,15 @@
 set -e
 
 KO_VERSION="0.18.0"
+KIND_VERSION="0.30.0"
+GO_VERSION="1.25"
+ALPINE_VERSION="3.18"
 
 echo "Starting end-to-end tests for external-dns with local provider..."
 
 # Install kind
 echo "Installing kind..."
-curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64
 chmod +x ./kind
 sudo mv ./kind /usr/local/bin/kind
 
@@ -33,19 +36,9 @@ sudo mv ko /usr/local/bin/ko
 echo "Building external-dns..."
 make build.image
 
-# Run the local provider in background
-# echo "Starting local provider..."
-# cd provider/local
-# go build .
-# ./local &
-# LOCAL_PROVIDER_PID=$!
-# cd ../..
-
-# giving the right permissions to the /etc/hosts file
-sudo chmod 666 /etc/hosts
 
 docker build -t webhook:v1 -f - . <<EOF
-FROM golang:1.25 AS builder
+FROM golang:${GO_VERSION} AS builder
 WORKDIR /app
 COPY . .
 RUN pwd && CGO_ENABLED=0 go build -o /app/localprovider /app/provider/local
@@ -59,7 +52,7 @@ kind load docker-image webhook:v1
 # Build a DNS testing image with dig
 echo "Building DNS test image with dig..."
 docker build -t dns-test:v1 -f - . <<EOF
-FROM alpine:3.18
+FROM alpine:${ALPINE_VERSION}
 RUN apk add --no-cache bind-tools curl
 ENTRYPOINT ["sh"]
 EOF
@@ -67,13 +60,7 @@ EOF
 kind load docker-image dns-test:v1
 sleep 10
 
-# # Run external-dns locally in background
-# echo "Starting external-dns locally..."
-# ./build/external-dns --source=service --provider=webhook --txt-owner-id=external.dns --policy=sync &
-# EXTERNAL_DNS_PID=$!
-
 # Deploy ExternalDNS to the cluster
-# create kustomization on the fly to add --provider=webhook --txt-owner-id=external.dns --policy=sync to the content in the kustomize folder
 echo "Deploying external-dns with custom arguments..."
 
 # Create temporary directory for kustomization
@@ -115,16 +102,6 @@ spec:
             - --dns-address=0.0.0.0
             - --dns-port=5353
             - --dns-ttl=300
-          volumeMounts:
-            - name: hosts-file
-              mountPath: /etc/hosts
-          securityContext:
-            privileged: true
-      volumes:
-      - name: hosts-file
-        hostPath:
-          path: /etc/hosts
-          type: File
 EOF
 
 # Update kustomization.yaml to include the patch
@@ -134,7 +111,7 @@ kind: Kustomization
 
 images:
   - name: registry.k8s.io/external-dns/external-dns
-    newTag: v0.18.0
+    newTag: v100.0.0 # fake version 
 
 resources:
   - ./external-dns-deployment.yaml
@@ -243,7 +220,6 @@ fi
 
 # Cleanup the test job
 kubectl delete job dns-server-test-job
-
 
 echo "End-to-end test completed!"
 
