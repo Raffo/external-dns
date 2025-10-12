@@ -36,7 +36,7 @@ sudo mv ko /usr/local/bin/ko
 echo "Building external-dns..."
 make build.image
 
-
+# Build a webhook image with the local provider
 docker build -t webhook:v1 -f - . <<EOF
 FROM golang:${GO_VERSION} AS builder
 WORKDIR /app
@@ -58,7 +58,6 @@ ENTRYPOINT ["sh"]
 EOF
 
 kind load docker-image dns-test:v1
-sleep 10
 
 # Deploy ExternalDNS to the cluster
 echo "Deploying external-dns with custom arguments..."
@@ -111,7 +110,7 @@ kind: Kustomization
 
 images:
   - name: registry.k8s.io/external-dns/external-dns
-    newTag: v100.0.0 # fake version 
+    newTag: v0.18.0 # needs to be the real version
 
 resources:
   - ./external-dns-deployment.yaml
