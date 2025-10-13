@@ -14,9 +14,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    - name: change permissions to /etc/hosts
-      run: |
-        sudo chmod 666 /etc/hosts
     - name: e2e
       run: |
         ./scripts/e2e-test.sh

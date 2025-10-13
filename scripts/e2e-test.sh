@@ -47,8 +47,6 @@ COPY --from=builder /app/localprovider /localprovider
 ENTRYPOINT ["/localprovider"]
 EOF
 
-kind load docker-image webhook:v1
-
 # Build a DNS testing image with dig
 echo "Building DNS test image with dig..."
 docker build -t dns-test:v1 -f - . <<EOF
@@ -57,6 +55,9 @@ RUN apk add --no-cache bind-tools curl
 ENTRYPOINT ["sh"]
 EOF
 
+# Load all images into kind cluster
+echo "Loading Docker images into kind cluster..."
+kind load docker-image webhook:v1
 kind load docker-image dns-test:v1
 
 # Deploy ExternalDNS to the cluster
