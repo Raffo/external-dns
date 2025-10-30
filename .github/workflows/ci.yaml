@@ -11,12 +11,12 @@ permissions:
 
 jobs:
 
-  test:
+  build:
     permissions:
       contents: read  #  to fetch code (actions/checkout)
       checks: write  #  to create a new check based on the results (shogo82148/actions-goveralls)
 
-    name: Test
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -28,7 +28,7 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Set up Go 1.x
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
         check-latest: true
@@ -38,28 +38,21 @@ jobs:
       run: |
         go get -v -t -d ./...
 
+    - name: Install additional CI for nektos/act
+      run: |
+            apt update
+            apt install -y make gcc libc-dev git
+      if: github.actor == 'nektos/act' && matrix.os == 'ubuntu-latest'
+
     - name: Test
       env:
-        GOMAXPROCS: 4
-        GOMEMLIMIT: 8192MiB
-      run: make go-test
+        GOMAXPROCS: 1
+        GOMEMLIMIT: 2048MiB
+      run: make test
 
     - name: Send coverage
-      uses: coverallsapp/github-action@v2
+      uses: shogo82148/actions-goveralls@v1
       with:
-        file: profile.cov
-        format: golang
-        flag-name: run-${{ join(matrix.*, '-') }}
-        parallel: true
+        path-to-profile: profile.cov
+      if: github.actor != 'nektos/act' && matrix.os == 'ubuntu-latest'
       continue-on-error: true
-
-  finish:
-    needs: test
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@v2
-      with:
-        parallel-finished: true
-        carryforward: "run-ubuntu-latest,run-macos-latest"

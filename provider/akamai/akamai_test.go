@@ -287,11 +287,10 @@ func TestCreateRecordsDomainFilter(t *testing.T) {
 	assert.NoError(t, err)
 
 	zoneNameIDMapper := provider.ZoneIDName{"example.com": "example.com"}
-	exclude := []*endpoint.Endpoint{
-		endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"),
-		endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeTXT, "heritage=external-dns,external-dns/owner=default"),
-		endpoint.NewEndpoint("www.exclude.me", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"),
-	}
+	endpoints := make([]*endpoint.Endpoint, 0)
+	endpoints = append(endpoints, endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"))
+	endpoints = append(endpoints, endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeTXT, "heritage=external-dns,external-dns/owner=default"))
+	exclude := append(endpoints, endpoint.NewEndpoint("www.exclude.me", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"))
 
 	err = c.createRecordsets(zoneNameIDMapper, exclude)
 	assert.NoError(t, err)
@@ -322,11 +321,10 @@ func TestDeleteRecordsDomainFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	zoneNameIDMapper := provider.ZoneIDName{"example.com": "example.com"}
-	exclude := []*endpoint.Endpoint{
-		endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"),
-		endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeTXT, "heritage=external-dns,external-dns/owner=default"),
-		endpoint.NewEndpoint("www.exclude.me", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"),
-	}
+	endpoints := make([]*endpoint.Endpoint, 0)
+	endpoints = append(endpoints, endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"))
+	endpoints = append(endpoints, endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeTXT, "heritage=external-dns,external-dns/owner=default"))
+	exclude := append(endpoints, endpoint.NewEndpoint("www.exclude.me", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"))
 
 	err = c.deleteRecordsets(zoneNameIDMapper, exclude)
 	assert.NoError(t, err)
@@ -357,11 +355,10 @@ func TestUpdateRecordsDomainFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	zoneNameIDMapper := provider.ZoneIDName{"example.com": "example.com"}
-	exclude := []*endpoint.Endpoint{
-		endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"),
-		endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeTXT, "heritage=external-dns,external-dns/owner=default"),
-		endpoint.NewEndpoint("www.exclude.me", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"),
-	}
+	endpoints := make([]*endpoint.Endpoint, 0)
+	endpoints = append(endpoints, endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"))
+	endpoints = append(endpoints, endpoint.NewEndpoint("www.example.com", endpoint.RecordTypeTXT, "heritage=external-dns,external-dns/owner=default"))
+	exclude := append(endpoints, endpoint.NewEndpoint("www.exclude.me", endpoint.RecordTypeA, "10.0.0.2", "10.0.0.3"))
 
 	err = c.updateNewRecordsets(zoneNameIDMapper, exclude)
 	require.NoError(t, err)

@@ -41,8 +41,7 @@ const (
 	priority    = 10 // default priority when nothing is set
 	etcdTimeout = 5 * time.Second
 
-	randomPrefixLabel     = "prefix"
-	providerSpecificGroup = "coredns/group"
+	randomPrefixLabel = "prefix"
 )
 
 // coreDNSClient is an interface to work with CoreDNS service records in etcd
@@ -163,10 +162,9 @@ func getETCDConfig() (*etcdcv3.Config, error) {
 	firstURL := strings.ToLower(etcdURLs[0])
 	etcdUsername := os.Getenv("ETCD_USERNAME")
 	etcdPassword := os.Getenv("ETCD_PASSWORD")
-	switch {
-	case strings.HasPrefix(firstURL, "http://"):
+	if strings.HasPrefix(firstURL, "http://") {
 		return &etcdcv3.Config{Endpoints: etcdURLs, Username: etcdUsername, Password: etcdPassword}, nil
-	case strings.HasPrefix(firstURL, "https://"):
+	} else if strings.HasPrefix(firstURL, "https://") {
 		tlsConfig, err := tlsutils.CreateTLSConfig("ETCD")
 		if err != nil {
 			return nil, err
@@ -178,7 +176,7 @@ func getETCDConfig() (*etcdcv3.Config, error) {
 			Username:  etcdUsername,
 			Password:  etcdPassword,
 		}, nil
-	default:
+	} else {
 		return nil, errors.New("etcd URLs must start with either http:// or https://")
 	}
 }
@@ -262,9 +260,6 @@ func (p coreDNSProvider) Records(_ context.Context) ([]*endpoint.Endpoint, error
 					endpoint.TTL(service.TTL),
 					service.Host,
 				)
-				if service.Group != "" {
-					ep.WithProviderSpecific(providerSpecificGroup, service.Group)
-				}
 				log.Debugf("Creating new ep (%s) with new service host (%s)", ep, service.Host)
 			}
 			ep.Labels["originalText"] = service.Text
@@ -307,8 +302,8 @@ func (p coreDNSProvider) groupEndpoints(changes *plan.Changes) map[string][]*end
 		grouped[ep.DNSName] = append(grouped[ep.DNSName], ep)
 	}
 	for i, ep := range changes.UpdateNew {
-		log.Debugf("Updating labels (%s) with old labels (%s)", ep.Labels, changes.UpdateOld[i].Labels)
 		ep.Labels = changes.UpdateOld[i].Labels
+		log.Debugf("Updating labels (%s) with old labels(%s)", ep.Labels, changes.UpdateOld[i].Labels)
 		grouped[ep.DNSName] = append(grouped[ep.DNSName], ep)
 	}
 	return grouped
@@ -351,17 +346,12 @@ func (p coreDNSProvider) createServicesForEndpoint(dnsName string, ep *endpoint.
 			prefix = fmt.Sprintf("%08x", rand.Int31())
 			log.Infof("Generating new prefix: (%s)", prefix)
 		}
-		group := ""
-		if prop, ok := ep.GetProviderSpecificProperty(providerSpecificGroup); ok {
-			group = prop
-		}
 		service := Service{
 			Host:        target,
 			Text:        ep.Labels["originalText"],
 			Key:         p.etcdKeyFor(prefix + "." + dnsName),
 			TargetStrip: strings.Count(prefix, ".") + 1,
 			TTL:         uint32(ep.RecordTTL),
-			Group:       group,
 		}
 		services = append(services, &service)
 		ep.Labels[target] = prefix

@@ -104,7 +104,7 @@ func Execute() {
 
 	endpointsSource, err := buildSource(ctx, cfg)
 	if err != nil {
-		log.Fatal(err) // nolint: gocritic // exitAfterDefer
+		log.Fatal(err)
 	}
 
 	domainFilter := createDomainFilter(cfg)
@@ -382,7 +382,6 @@ func buildController(
 		ManagedRecordTypes:   cfg.ManagedDNSRecordTypes,
 		ExcludeRecordTypes:   cfg.ExcludeDNSRecordTypes,
 		MinEventSyncInterval: cfg.MinEventSyncInterval,
-		TXTOwnerOld:          cfg.TXTOwnerOld,
 		EventEmitter:         eventEmitter,
 	}, nil
 }
@@ -419,7 +418,7 @@ func selectRegistry(cfg *externaldns.Config, p provider.Provider) (registry.Regi
 	case "noop":
 		r, err = registry.NewNoopRegistry(p)
 	case "txt":
-		r, err = registry.NewTXTRegistry(p, cfg.TXTPrefix, cfg.TXTSuffix, cfg.TXTOwnerID, cfg.TXTCacheInterval, cfg.TXTWildcardReplacement, cfg.ManagedDNSRecordTypes, cfg.ExcludeDNSRecordTypes, cfg.TXTEncryptEnabled, []byte(cfg.TXTEncryptAESKey), cfg.TXTOwnerOld)
+		r, err = registry.NewTXTRegistry(p, cfg.TXTPrefix, cfg.TXTSuffix, cfg.TXTOwnerID, cfg.TXTCacheInterval, cfg.TXTWildcardReplacement, cfg.ManagedDNSRecordTypes, cfg.ExcludeDNSRecordTypes, cfg.TXTEncryptEnabled, []byte(cfg.TXTEncryptAESKey))
 	case "aws-sd":
 		r, err = registry.NewAWSSDRegistry(p, cfg.TXTOwnerID)
 	default:
@@ -446,14 +445,18 @@ func buildSource(ctx context.Context, cfg *externaldns.Config) (source.Source, e
 	if err != nil {
 		return nil, err
 	}
-	opts := wrappers.NewConfig(
-		wrappers.WithDefaultTargets(cfg.DefaultTargets),
-		wrappers.WithForceDefaultTargets(cfg.ForceDefaultTargets),
-		wrappers.WithNAT64Networks(cfg.NAT64Networks),
-		wrappers.WithTargetNetFilter(cfg.TargetNetFilter),
-		wrappers.WithExcludeTargetNets(cfg.ExcludeTargetNets),
-		wrappers.WithMinTTL(cfg.MinTTL))
-	return wrappers.WrapSources(sources, opts)
+	// Combine multiple sources into a single, deduplicated source.
+	combinedSource := wrappers.NewDedupSource(wrappers.NewMultiSource(sources, sourceCfg.DefaultTargets, sourceCfg.ForceDefaultTargets))
+	cfg.AddSourceWrapper("dedup")
+	combinedSource = wrappers.NewNAT64Source(combinedSource, cfg.NAT64Networks)
+	cfg.AddSourceWrapper("nat64")
+	// Filter targets
+	targetFilter := endpoint.NewTargetNetFilterWithExclusions(cfg.TargetNetFilter, cfg.ExcludeTargetNets)
+	if targetFilter.IsEnabled() {
+		combinedSource = wrappers.NewTargetFilterSource(combinedSource, targetFilter)
+		cfg.AddSourceWrapper("target-filter")
+	}
+	return combinedSource, nil
 }
 
 // RegexDomainFilter overrides DomainFilter

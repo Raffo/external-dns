@@ -46,8 +46,6 @@ type config struct {
 	UseWorkloadIdentityExtension bool   `json:"useWorkloadIdentityExtension" yaml:"useWorkloadIdentityExtension"`
 	UserAssignedIdentityID       string `json:"userAssignedIdentityID"       yaml:"userAssignedIdentityID"`
 	ActiveDirectoryAuthorityHost string `json:"activeDirectoryAuthorityHost" yaml:"activeDirectoryAuthorityHost"`
-	ResourceManagerAudience      string `json:"resourceManagerAudience"      yaml:"resourceManagerAudience"`
-	ResourceManagerEndpoint      string `json:"resourceManagerEndpoint"      yaml:"resourceManagerEndpoint"`
 }
 
 func getConfig(configFile, subscriptionID, resourceGroup, userAssignedIdentityClientID, activeDirectoryAuthorityHost string) (*config, error) {
@@ -108,7 +106,7 @@ func CustomHeaderPolicynew() policy.Policy { return &customHeaderPolicy{} }
 
 // getCredentials retrieves Azure API credentials.
 func getCredentials(cfg config, maxRetries int) (azcore.TokenCredential, *arm.ClientOptions, error) {
-	cloudCfg, err := getCloudConfiguration(cfg)
+	cloudCfg, err := getCloudConfiguration(cfg.Cloud)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get cloud configuration: %w", err)
 	}
@@ -195,8 +193,8 @@ func getCredentials(cfg config, maxRetries int) (azcore.TokenCredential, *arm.Cl
 	return nil, nil, fmt.Errorf("no credentials provided for Azure API")
 }
 
-func getCloudConfiguration(cfg config) (cloud.Configuration, error) {
-	name := strings.ToUpper(cfg.Cloud)
+func getCloudConfiguration(name string) (cloud.Configuration, error) {
+	name = strings.ToUpper(name)
 	switch name {
 	case "AZURECLOUD", "AZUREPUBLICCLOUD", "":
 		return cloud.AzurePublic, nil
@@ -204,16 +202,6 @@ func getCloudConfiguration(cfg config) (cloud.Configuration, error) {
 		return cloud.AzureGovernment, nil
 	case "AZURECHINACLOUD":
 		return cloud.AzureChina, nil
-	case "AZURESTACKCLOUD":
-		return cloud.Configuration{
-			ActiveDirectoryAuthorityHost: cfg.ActiveDirectoryAuthorityHost,
-			Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
-				cloud.ResourceManager: {
-					Audience: cfg.ResourceManagerAudience,
-					Endpoint: cfg.ResourceManagerEndpoint,
-				},
-			},
-		}, nil
 	}
 	return cloud.Configuration{}, fmt.Errorf("unknown cloud name: %s", name)
 }

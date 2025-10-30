@@ -229,7 +229,8 @@ func (gs *glooSource) proxyTargets(ctx context.Context, name string, namespace s
 }
 
 func sourceKind(kind string) *schema.GroupVersionResource {
-	if kind == "*v1.VirtualService" {
+	switch kind {
+	case "*v1.VirtualService":
 		return &virtualServiceGVR
 	}
 	return nil

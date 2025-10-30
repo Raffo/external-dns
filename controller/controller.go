@@ -182,8 +182,6 @@ type Controller struct {
 	ExcludeRecordTypes []string
 	// MinEventSyncInterval is used as a window for batching events
 	MinEventSyncInterval time.Duration
-	// Old txt-owner value we need to migrate from
-	TXTOwnerOld string
 }
 
 // RunOnce runs a single iteration of a reconciliation loop.
@@ -238,7 +236,6 @@ func (c *Controller) RunOnce(ctx context.Context) error {
 		ManagedRecords: c.ManagedRecordTypes,
 		ExcludeRecords: c.ExcludeRecordTypes,
 		OwnerID:        c.Registry.OwnerID(),
-		OldOwnerId:     c.TXTOwnerOld,
 	}
 
 	plan = plan.Calculate()
@@ -353,7 +350,7 @@ func (c *Controller) Run(ctx context.Context) {
 					consecutiveSoftErrors.Gauge.Set(float64(softErrorCount))
 					log.Errorf("Failed to do run once: %v (consecutive soft errors: %d)", err, softErrorCount)
 				} else {
-					log.Fatalf("Failed to do run once: %v", err) // nolint: gocritic // exitAfterDefer
+					log.Fatalf("Failed to do run once: %v", err)
 				}
 			} else {
 				if softErrorCount > 0 {

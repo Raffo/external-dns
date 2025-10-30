@@ -16,10 +16,6 @@
 .PHONY: cover cover-html
 .DEFAULT_GOAL := build
 
-CONTROLLER_GEN := go tool -modfile=go.tool.mod  controller-gen
-YQ := go tool -modfile=go.tool.mod yq
-YAMLFMT := go tool -modfile=go.tool.mod yamlfmt
-
 cover:
 	@go test -cover -coverprofile=cover.out -v ./...
 
@@ -27,12 +23,14 @@ cover:
 cover-html: cover
 	@go tool cover -html=cover.out
 
-#? go-tools: list installed go tools
-go-tools:
-	@echo ">> go tools installed in go.mod"
-	@go tool  -n
-	@echo ">> go tools installed in go.tool.mod"
-	@go tool -modfile=go.tool.mod
+#? controller-gen: download controller-gen if necessary
+controller-gen-install:
+	@scripts/install-tools.sh --generator
+ifeq (, $(shell which controller-gen))
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif
 
 #? golangci-lint-install: Install golangci-lint tool
 golangci-lint-install:
@@ -50,17 +48,17 @@ go-lint: golangci-lint-install
 licensecheck:
 	@echo ">> checking license header"
 	@licRes=$$(for file in $$(find . -type f -iname '*.go' ! -path './vendor/*') ; do \
-			awk 'NR<=5' $$file | grep -Eq "(Copyright|generated|GENERATED)" || echo $$file; \
-		done); \
-		if [ -n "$${licRes}" ]; then \
-			echo "license header checking failed:"; echo "$${licRes}"; \
-			exit 1; \
-		fi
+            awk 'NR<=5' $$file | grep -Eq "(Copyright|generated|GENERATED)" || echo $$file; \
+        done); \
+        if [ -n "$${licRes}" ]; then \
+            echo "license header checking failed:"; echo "$${licRes}"; \
+            exit 1; \
+        fi
 
 #? oas-lint: Execute OpenAPI Specification (OAS) linting https://quobix.com/vacuum/
 .PHONY: go-lint
 oas-lint:
-	go tool -modfile=go.tool.mod vacuum lint -d --fail-severity warn api/*.yaml
+	go tool vacuum lint -d --fail-severity warn api/*.yaml
 
 #? lint: Run all the linters
 .PHONY: lint
@@ -68,26 +66,15 @@ lint: licensecheck go-lint oas-lint
 
 #? crd: Generates CRD using controller-gen and copy it into chart
 .PHONY: crd
-crd:
-	$(CONTROLLER_GEN) object crd:crdVersions=v1 paths="./endpoint/..."
-	$(CONTROLLER_GEN) object crd:crdVersions=v1 paths="./apis/..." output:crd:stdout | \
-		$(YAMLFMT) - | \
-		$(YQ) eval '.' --no-doc --split-exp '"./config/crd/standard/" + .metadata.name + ".yaml"'
-	$(YQ) eval '.metadata.annotations |= with_entries(select(.key | test("kubernetes\.io")))' \
-		--no-doc --split-exp '"./charts/external-dns/crds/" + .metadata.name + ".yaml"' \
-		./config/crd/standard/*.yaml
+crd: controller-gen-install
+	${CONTROLLER_GEN} object crd:crdVersions=v1 paths="./endpoint/..."
+	${CONTROLLER_GEN} object crd:crdVersions=v1 paths="./apis/..." output:crd:stdout | yamlfmt - | yq eval '.' --no-doc --split-exp '"./config/crd/standard/" + .metadata.name + ".yaml"'
+	yq eval '.metadata.annotations |= with_entries(select(.key | test("kubernetes\.io")))' --no-doc --split-exp '"./charts/external-dns/crds/" + .metadata.name + ".yaml"' ./config/crd/standard/*.yaml
 
 #? test: The verify target runs tasks similar to the CI tasks, but without code coverage
 .PHONY: test
 test:
-	go test -race ./...
-
-
-.PHONY: test
-go-test:
 	go test -race -coverprofile=profile.cov ./...
-	go tool cover -func=profile.cov > coverage.summary
-	@tail -n 1 coverage.summary
 
 #? build: The build targets allow to build the binary and container image
 .PHONY: build
@@ -115,11 +102,11 @@ build/$(BINARY): $(SOURCES)
 
 build.push/multiarch: ko
 	KO_DOCKER_REPO=${IMAGE} \
-	VERSION=${VERSION} \
-	ko build --tags ${VERSION} --bare --sbom ${IMG_SBOM} \
-		--image-label org.opencontainers.image.source="https://github.com/kubernetes-sigs/external-dns" \
-		--image-label org.opencontainers.image.revision=$(shell git rev-parse HEAD) \
-		--platform=${IMG_PLATFORM}  --push=${IMG_PUSH} .
+    VERSION=${VERSION} \
+    ko build --tags ${VERSION} --bare --sbom ${IMG_SBOM} \
+      --image-label org.opencontainers.image.source="https://github.com/kubernetes-sigs/external-dns" \
+      --image-label org.opencontainers.image.revision=$(shell git rev-parse HEAD) \
+      --platform=${IMG_PLATFORM}  --push=${IMG_PUSH} .
 
 build.image/multiarch:
 	$(MAKE) IMG_PUSH=false build.push/multiarch

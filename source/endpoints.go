@@ -108,5 +108,5 @@ func EndpointTargetsFromServices(svcInformer coreinformers.ServiceInformer, name
 			}
 		}
 	}
-	return endpoint.NewTargets(targets...), nil
+	return targets, nil
 }

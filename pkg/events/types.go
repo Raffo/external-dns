@@ -177,7 +177,7 @@ func sanitize(input string) string {
 
 	// the name should end with an alphanumeric character
 	if len(sanitized) > 0 && !endsWithAlphaNumeric.MatchString(sanitized) {
-		sanitized += "z"
+		sanitized = sanitized + "z"
 	}
 
 	sanitized = invalidChars.ReplaceAllString(sanitized, "-")

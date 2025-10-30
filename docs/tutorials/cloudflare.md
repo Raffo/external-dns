@@ -151,7 +151,7 @@ spec:
     spec:
       containers:
         - name: external-dns
-          image: registry.k8s.io/external-dns/external-dns:v0.19.0
+          image: registry.k8s.io/external-dns/external-dns:v0.18.0
           args:
             - --source=service # ingress is also possible
             - --domain-filter=example.com # (optional) limit to only example.com domains; change to match the zone created above.
@@ -232,7 +232,7 @@ spec:
       serviceAccountName: external-dns
       containers:
         - name: external-dns
-          image: registry.k8s.io/external-dns/external-dns:v0.19.0
+          image: registry.k8s.io/external-dns/external-dns:v0.18.0
           args:
             - --source=service # ingress is also possible
             - --domain-filter=example.com # (optional) limit to only example.com domains; change to match the zone created above.
@@ -385,20 +385,6 @@ The custom hostname DNS must resolve to the Cloudflare DNS record (`external-dns
 Requires [Cloudflare for SaaS](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/) product and "SSL and Certificates" API permission.
 
 **Note:** Due to using the legacy cloudflare-go v0 API for custom hostname management, the custom hostname page size is fixed at 50. This limitation will be addressed in a future migration to the v4 SDK.
-
-## Setting Cloudflare DNS Record Tags
-
-Cloudflare allows you to add descriptive tags to DNS records. This can be useful for organizing your records.
-For example one can apply tags by environment (`production`, `staging`) or by the team that owns them (`frontend-team`, `backend-team`). ExternalDNS can manage these tags for you.
-
-To assign tags to a DNS record, add the `external-dns.alpha.kubernetes.io/cloudflare-tags` annotation to your Kubernetes resource (like a Service or Ingress). The value should be a comma-separated list of your desired tags.
-
-```yaml
-metadata:
-  annotations:
-    # Assigns three tags to the DNS record created from this resource
-    external-dns.alpha.kubernetes.io/cloudflare-tags: "owner:frontend-team, env:dev, component:api"
-```
 
 ## Using CRD source to manage DNS records in Cloudflare
 

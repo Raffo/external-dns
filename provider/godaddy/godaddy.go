@@ -178,17 +178,16 @@ func (p *GDProvider) zonesRecords(ctx context.Context, all bool) ([]string, []gd
 		return nil, nil, err
 	}
 
-	switch len(zones) {
-	case 0:
+	if len(zones) == 0 {
 		allRecords = []gdRecords{}
-	case 1:
+	} else if len(zones) == 1 {
 		record, err := p.records(&ctx, zones[0], all)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		allRecords = append(allRecords, *record)
-	default:
+	} else {
 		chRecords := make(chan gdRecords, len(zones))
 
 		eg, ctx := errgroup.WithContext(ctx)

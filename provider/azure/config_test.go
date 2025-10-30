@@ -45,8 +45,7 @@ func TestGetCloudConfiguration(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			cfg := config{Cloud: test.cloudName}
-			cloudCfg, err := getCloudConfiguration(cfg)
+			cloudCfg, err := getCloudConfiguration(test.cloudName)
 			if err != nil {
 				t.Errorf("got unexpected err %v", err)
 			}

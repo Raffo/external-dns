@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		_ = fmt.Errorf("failed to generate markdown file '%s': %v", path, err.Error())
 	}
-	content += "\n"
+	content = content + "\n"
 	_ = utils.WriteToFile(path, content)
 }
 

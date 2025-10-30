@@ -552,7 +552,7 @@ func (p *OVHProvider) newOvhChangeCreateDelete(action int, endpoints []*endpoint
 	return ovhChanges, existingRecords
 }
 
-func convertDNSNameIntoSubDomain(DNSName string, zoneName string) string { // nolint: gocritic // captLocal
+func convertDNSNameIntoSubDomain(DNSName string, zoneName string) string {
 	if DNSName == zoneName {
 		return ""
 	}
