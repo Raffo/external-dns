@@ -15,9 +15,19 @@ curl -Lo ./kind https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64
 chmod +x ./kind
 sudo mv ./kind /usr/local/bin/kind
 
+# Cleanup function
+cleanup() {
+    echo "Cleaning up..."
+    kind delete cluster 2>/dev/null || true
+}
+
 # Create kind cluster
 echo "Creating kind cluster..."
+kind delete cluster 2>/dev/null || true
 kind create cluster
+
+# Set trap to cleanup on script exit
+trap cleanup EXIT
 
 # Install kubectl
 echo "Installing kubectl..."
@@ -186,8 +196,8 @@ spec:
           ATTEMPT=1
           while [ \$ATTEMPT -le \$MAX_ATTEMPTS ]; do
             echo "Attempt \$ATTEMPT/\$MAX_ATTEMPTS: Querying externaldns-e2e.external.dns A record"
-            RESULT=\$(dig @$NODE_IP -p 5353 externaldns-e2e.external.dns A +short +timeout=5)
-            if [ -n "\$RESULT" ]; then
+            RESULT=\$(dig @$NODE_IP -p 5353 externaldns-e2e.external.dns A +short +timeout=5 2>/dev/null)
+            if echo "\$RESULT" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
               echo "DNS query successful: \$RESULT"
               exit 0
             fi
@@ -228,17 +238,3 @@ if [ "$TEST_PASSED" != "true" ]; then
     exit 1
 fi
 
-# Cleanup function
-cleanup() {
-    echo "Cleaning up..."
-    if [ ! -z "$EXTERNAL_DNS_PID" ]; then
-        kill $EXTERNAL_DNS_PID 2>/dev/null || true
-    fi
-    if [ ! -z "$LOCAL_PROVIDER_PID" ]; then
-        kill $LOCAL_PROVIDER_PID 2>/dev/null || true
-    fi
-    kind delete cluster 2>/dev/null || true
-}
-
-# Set trap to cleanup on script exit
-trap cleanup EXIT

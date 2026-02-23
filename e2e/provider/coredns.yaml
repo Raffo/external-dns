@@ -36,7 +36,7 @@ spec:
         app: coredns
     spec:
       hostNetwork: true
-      dnsPolicy: Default
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: coredns
         image: coredns/coredns:1.13.1
