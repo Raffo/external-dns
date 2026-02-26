@@ -237,4 +237,3 @@ echo "End-to-end test completed!"
 if [ "$TEST_PASSED" != "true" ]; then
     exit 1
 fi
-
