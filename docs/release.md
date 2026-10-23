@@ -47,6 +47,16 @@ We use https://github.com/cli/cli to automate the release process. Please instal
 
 You must be an official maintainer of the project to be able to do a release.
 
+### Assisted release
+
+The [release skill](../.github/skills/release/SKILL.md) guides a compatible coding agent
+through the steps below, including invoking the existing scripts, creating and
+watching promotion and version-updater PRs, waiting for images to be pullable,
+and opening the Helm chart release issue.
+Ask the agent to use the `release` skill with the intended version and target
+repository; it will confirm publication and PR permissions before proceeding.
+Official releases target `kubernetes-sigs/external-dns`, not a personal fork.
+
 ### Steps
 
 1. Run `scripts/releaser.sh` to create a new GitHub release (and git tag). Alternatively create a release in the GitHub UI and use the autogenerate release notes feature.
